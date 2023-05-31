@@ -1,0 +1,128 @@
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+
+// Define a entrada digital com o valor "53"
+#define ENTRADA_DIGITAL 2
+// Define a entrada analógica com o valor "1"
+#define ENTRADA_ANALOGICA A0
+#define PRESENCE_ENTRADA_DIGITAL 3
+
+// Define os pinos para o motor
+#define PINO_MOTOR 9
+
+// Recebe a leitura feita no pino digital
+bool dSensor;
+// Recebe a leitura feita no pino analógico
+int aSensor;
+
+// Define os limites para a leitura do sensor de umidade do solo
+const int LIMITE_UMIDADE_SECO = 700;
+const int LIMITE_UMIDADE_MOLHADO = 300;
+
+LiquidCrystal_I2C lcd(0x27, 20, 4);  // set the LCD address to 0x27 for a 16 chars and 2 line display
+
+// Função setup é executada apenas uma vez
+void setup()
+{
+  // Configura a entrada digital como entrada
+  pinMode(ENTRADA_DIGITAL, INPUT);
+  pinMode(PRESENCE_ENTRADA_DIGITAL, INPUT);
+
+  // Configura o pino do motor como saída
+  pinMode(PINO_MOTOR, OUTPUT);
+
+  // Inicia a comunicação serial a 9600 bits por segundo
+  Serial.begin(9600);
+  lcd.init();
+  // Print a message to the LCD.
+  lcd.backlight();
+  lcd.setCursor(3, 0);
+}
+
+/* Essas variáveis são globais pois é necessário
+   manter os valores independentemente do contexto de
+   execução da função tarefa_1 */
+const unsigned long periodo_tarefa_1 = 1000;
+unsigned long tempo_tarefa_1 = millis();
+
+// Função para controlar o motor com base no sensor de presença
+void controlarMotorPresenca(bool presenca)
+{
+  if (presenca)
+  {
+    digitalWrite(PINO_MOTOR, HIGH); // Ligar o motor
+  }
+  else
+  {
+    digitalWrite(PINO_MOTOR, LOW); // Desligar o motor
+  }
+}
+
+// Função para controlar a rotação do motor com base no sensor de umidade do solo
+void controlarRotacaoMotor(int umidade)
+{
+  int velocidade = map(umidade, LIMITE_UMIDADE_SECO, LIMITE_UMIDADE_MOLHADO, 0, 255);
+  analogWrite(PINO_MOTOR, velocidade);
+}
+
+// Função para alterar a velocidade do motor com base no sensor de gás e fumaça
+void alterarVelocidadeMotor(int valorSensorGas)
+{
+  int velocidade = map(valorSensorGas, 0, 1023, 0, 255);
+  analogWrite(PINO_MOTOR, velocidade);
+}
+
+// Envia os valores inteiros para o PC
+void tarefa_1(unsigned long tempo_atual)
+{
+  int sensorValue = analogRead(A1);
+
+  // Hora de enviar os dados caso tenha passado 1000 ms
+  if (tempo_atual - tempo_tarefa_1 > periodo_tarefa_1)
+  {
+    // Faz a leitura do sensor
+    dSensor = digitalRead(ENTRADA_DIGITAL);
+    aSensor = analogRead(ENTRADA_ANALOGICA);
+
+    // Envia para o computador (serial) os dados
+    Serial.print("Leitura entrada digital: ");
+    Serial.println(dSensor);
+
+    if (sensorValue < LIMITE_UMIDADE_SECO)
+    {
+      lcd.setCursor(3, 0);
+      lcd.print("UMIDO");
+    }
+    else
+    {
+      lcd.setCursor(3, 0);
+      lcd.print("SECO");
+    }
+
+    if (dSensor == 0)
+    {
+      lcd.setCursor(3, 0);
+      lcd.print("FOGO");
+    }
+
+    Serial.print("Leitura entrada analógica: ");
+    Serial.println(aSensor);
+    Serial.println();
+
+    // Controla o motor com base nos sensores
+    controlarMotorPresenca(dSensor);
+    controlarRotacaoMotor(sensorValue);
+    alterarVelocidadeMotor(aSensor);
+
+    tempo_tarefa_1 = tempo_atual;
+  }
+}
+
+// Função loop é para executar repetidamente o código
+void loop()
+{
+  delay(500);
+  unsigned long tempo_atual = millis();
+
+  tarefa_1(tempo_atual);
+}
