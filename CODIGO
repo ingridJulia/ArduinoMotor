@@ -1,9 +1,9 @@
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
 
-// Define a entrada digital com o valor "53"
+// Define a entrada digital com o valor "2"
 #define ENTRADA_DIGITAL 2
-// Define a entrada analógica com o valor "1"
+// Define a entrada analógica com o valor "0"
 #define ENTRADA_ANALOGICA A0
 #define PRESENCE_ENTRADA_DIGITAL 3
 
