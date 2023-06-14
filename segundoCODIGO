@@ -1,0 +1,99 @@
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+
+#define ENTRADA_DIGITAL 2
+#define ENTRADA_ANALOGICA A0
+#define PRESENCE_ENTRADA_DIGITAL 3
+#define PINO_MOTOR 9
+
+bool dSensor;
+int aSensor;
+
+const int LIMITE_UMIDADE_SECO = 700;
+const int LIMITE_UMIDADE_MOLHADO = 300;
+
+LiquidCrystal_I2C lcd(0x27, 20, 4);
+
+void setup()
+{
+  pinMode(ENTRADA_DIGITAL, INPUT);
+  pinMode(PRESENCE_ENTRADA_DIGITAL, INPUT);
+  pinMode(PINO_MOTOR, OUTPUT);
+
+  Serial.begin(9600);
+  lcd.init();
+  lcd.backlight();
+  lcd.setCursor(3, 0);
+}
+
+void controlarMotorPresenca(bool presenca)
+{
+  if (presenca)
+  {
+    digitalWrite(PINO_MOTOR, HIGH);
+  }
+  else
+  {
+    digitalWrite(PINO_MOTOR, LOW);
+  }
+}
+
+void controlarRotacaoMotor(int umidade)
+{
+  int velocidade = map(umidade, LIMITE_UMIDADE_SECO, LIMITE_UMIDADE_MOLHADO, 0, 255);
+  analogWrite(PINO_MOTOR, velocidade);
+}
+
+void alterarVelocidadeMotor(int valorSensorGas)
+{
+  int velocidade = map(valorSensorGas, 0, 1023, 0, 255);
+  analogWrite(PINO_MOTOR, velocidade);
+}
+
+void tarefa_1(unsigned long tempo_atual)
+{
+  int sensorValue = analogRead(A1);
+
+  if (tempo_atual - tempo_tarefa_1 > periodo_tarefa_1)
+  {
+    dSensor = digitalRead(ENTRADA_DIGITAL);
+    aSensor = analogRead(ENTRADA_ANALOGICA);
+
+    Serial.print("Leitura entrada digital: ");
+    Serial.println(dSensor);
+
+    if (sensorValue < LIMITE_UMIDADE_SECO)
+    {
+      lcd.setCursor(3, 0);
+      lcd.print("UMIDO");
+    }
+    else
+    {
+      lcd.setCursor(3, 0);
+      lcd.print("SECO");
+    }
+
+    if (dSensor == 0)
+    {
+      lcd.setCursor(3, 0);
+      lcd.print("FOGO");
+    }
+
+    Serial.print("Leitura entrada analógica: ");
+    Serial.println(aSensor);
+    Serial.println();
+
+    controlarMotorPresenca(dSensor);
+    controlarRotacaoMotor(sensorValue);
+    alterarVelocidadeMotor(aSensor);
+
+    tempo_tarefa_1 = tempo_atual;
+  }
+}
+
+void loop()
+{
+  delay(500);
+  unsigned long tempo_atual = millis();
+  tarefa_1(tempo_atual);
+}
